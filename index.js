@@ -1,43 +1,87 @@
-const express = require("express");
-const cors = require("cors");
-const bodyParser = require("body-parser");
-const twilio = require("twilio");
+require('dotenv').config();
+
+const express = require('express');
+const cors = require('cors');
+
+// Routers
+const checkinRouter   = require('./routes/checkin');
+const sosRouter       = require('./routes/sos');
+const emailRouter     = require('./routes/email');
+const whatsappRouter  = require('./routes/whatsapp');
 
 const app = express();
-app.use(cors());
-app.use(bodyParser.json());
-
-// Twilio credentials (abhi blank rahne do)
-const client = twilio(
-  process.env.TWILIO_SID,
-  process.env.TWILIO_AUTH
-);
-
-// Test route
-app.get("/", (req, res) => {
-  res.send("StillSafe server running ✅");
-});
-
-// WhatsApp API
-app.post("/send-whatsapp", async (req, res) => {
-  const { phone, message } = req.body;
-
-  try {
-    await client.messages.create({
-      from: "whatsapp:+14155238886",
-      to: `whatsapp:+${phone}`,
-      body: message,
-    });
-
-    res.json({ success: true });
-  } catch (e) {
-    console.log(e);
-    res.status(500).json({ success: false });
-  }
-});
-
-// Server start
 const PORT = process.env.PORT || 3000;
+
+// ───────────────────────────────────────────
+// ✅ Middleware
+// ───────────────────────────────────────────
+app.use(cors());
+
+// Built-in JSON parser (body-parser ki zaroorat nahi)
+app.use(express.json());
+
+// ───────────────────────────────────────────
+// ✅ Health Check Route
+// ───────────────────────────────────────────
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    status: 'running',
+    app: 'StillSafe Server',
+    version: '1.0.0',
+    message: 'Still Safe. Still Here.'
+  });
+});
+
+// ───────────────────────────────────────────
+// 🔐 API KEY Middleware (Security Layer)
+// ───────────────────────────────────────────
+app.use((req, res, next) => {
+  const apiKey = req.headers['x-api-key'];
+
+  if (!apiKey || apiKey !== process.env.API_SECRET_KEY) {
+    return res.status(401).json({
+      success: false,
+      message: 'Unauthorized: Invalid API Key'
+    });
+  }
+
+  next();
+});
+
+// ───────────────────────────────────────────
+// ✅ Routes
+// ───────────────────────────────────────────
+app.use('/send-checkin', checkinRouter);
+app.use('/send-sos', sosRouter);
+app.use('/send-email', emailRouter);
+app.use('/send-whatsapp', whatsappRouter);
+
+// ───────────────────────────────────────────
+// ❌ 404 Handler
+// ───────────────────────────────────────────
+app.use((req, res) => {
+  res.status(404).json({
+    success: false,
+    message: 'Route not found'
+  });
+});
+
+// ───────────────────────────────────────────
+// ❌ Global Error Handler
+// ───────────────────────────────────────────
+app.use((err, req, res, next) => {
+  console.error('❌ Server Error:', err);
+
+  res.status(500).json({
+    success: false,
+    message: 'Internal Server Error'
+  });
+});
+
+// ───────────────────────────────────────────
+// 🚀 Start Server
+// ───────────────────────────────────────────
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`🚀 StillSafe server running on port ${PORT}`);
 });

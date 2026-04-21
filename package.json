@@ -1,7 +1,7 @@
 {
   "name": "stillsafe-server",
   "version": "1.0.0",
-  "description": "StillSafe Backend Server",
+  "description": "StillSafe Backend Server (Express + Railway deployment)",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
