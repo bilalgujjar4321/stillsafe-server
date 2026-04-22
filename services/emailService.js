@@ -1,9 +1,20 @@
 const sgMail = require('@sendgrid/mail');
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-
 const FROM_EMAIL = process.env.FROM_EMAIL;
 const FROM_NAME  = 'StillSafe';
+
+// ── Get SendGrid Instance Safely ───────────
+function getSendGrid() {
+  const apiKey = process.env.SENDGRID_API_KEY;
+
+  if (!apiKey || !apiKey.startsWith("SG.")) {
+    console.error("❌ Invalid or missing SendGrid API Key");
+    return null;
+  }
+
+  sgMail.setApiKey(apiKey);
+  return sgMail;
+}
 
 // ── Email Template ─────────────────────────
 function buildTemplate(type, data) {
@@ -101,16 +112,24 @@ function buildTemplate(type, data) {
 // ── Send Email ─────────────────────────────
 async function sendEmail({ toEmail, toName, subject, type, data }) {
   try {
-    await sgMail.send({
+    const mailer = getSendGrid();
+
+    if (!mailer) {
+      return { success: false, error: "SendGrid not configured" };
+    }
+
+    await mailer.send({
       to:   { email: toEmail, name: toName },
       from: { email: FROM_EMAIL, name: FROM_NAME },
       subject,
       html: buildTemplate(type, data),
     });
-    console.log(`Email sent to ${toEmail}`);
+
+    console.log(`✅ Email sent to ${toEmail}`);
     return { success: true };
+
   } catch (error) {
-    console.error('SendGrid error:', error.response?.body || error);
+    console.error('❌ SendGrid error:', error.response?.body || error);
     return { success: false, error: error.message };
   }
 }
