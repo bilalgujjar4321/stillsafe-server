@@ -10,14 +10,14 @@ const emailRouter     = require('./routes/email');
 const whatsappRouter  = require('./routes/whatsapp');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+
+// 🚨 IMPORTANT: Railway port must be used correctly
+const PORT = process.env.PORT;
 
 // ───────────────────────────────────────────
 // ✅ Middleware
 // ───────────────────────────────────────────
 app.use(cors());
-
-// Built-in JSON parser (body-parser ki zaroorat nahi)
 app.use(express.json());
 
 // ───────────────────────────────────────────
@@ -34,7 +34,7 @@ app.get('/', (req, res) => {
 });
 
 // ───────────────────────────────────────────
-// 🔐 API KEY Middleware (Security Layer)
+// 🔐 API KEY Middleware
 // ───────────────────────────────────────────
 const verifyApiKey = (req, res, next) => {
   const apiKey = req.headers['x-api-key'];
@@ -68,7 +68,7 @@ app.use((req, res) => {
 });
 
 // ───────────────────────────────────────────
-// ❌ Global Error Handler
+// ❌ Error Handler
 // ───────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error('❌ Server Error:', err);
@@ -80,8 +80,8 @@ app.use((err, req, res, next) => {
 });
 
 // ───────────────────────────────────────────
-// 🚀 Start Server
+// 🚀 Start Server (IMPORTANT FIX FOR RAILWAY)
 // ───────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 StillSafe server running on port ${PORT}`);
 });
