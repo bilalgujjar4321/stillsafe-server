@@ -36,7 +36,7 @@ app.get('/', (req, res) => {
 // ───────────────────────────────────────────
 // 🔐 API KEY Middleware (Security Layer)
 // ───────────────────────────────────────────
-app.use((req, res, next) => {
+const verifyApiKey = (req, res, next) => {
   const apiKey = req.headers['x-api-key'];
 
   if (!apiKey || apiKey !== process.env.API_SECRET_KEY) {
@@ -47,15 +47,15 @@ app.use((req, res, next) => {
   }
 
   next();
-});
+};
 
 // ───────────────────────────────────────────
 // ✅ Routes
 // ───────────────────────────────────────────
-app.use('/send-checkin', checkinRouter);
-app.use('/send-sos', sosRouter);
-app.use('/send-email', emailRouter);
-app.use('/send-whatsapp', whatsappRouter);
+app.use('/send-checkin', verifyApiKey, checkinRouter);
+app.use('/send-sos', verifyApiKey, sosRouter);
+app.use('/send-email', verifyApiKey, emailRouter);
+app.use('/send-whatsapp', verifyApiKey, whatsappRouter);
 
 // ───────────────────────────────────────────
 // ❌ 404 Handler
