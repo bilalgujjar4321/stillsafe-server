@@ -18,23 +18,22 @@ function getSendGrid() {
 
 // ── Email Template ─────────────────────────
 function buildTemplate(type, data) {
-  const issos = type === 'sos';
+  const isSOS = type === 'sos';
 
-  const headerColor = issos ? '#E63946' : '#0B7A75';
-  const headerText  = issos
+  const headerColor = isSOS ? '#E63946' : '#0B7A75';
+  const headerText  = isSOS
     ? '🚨 EMERGENCY SOS ALERT'
     : '✅ StillSafe Check-In';
 
-  const bodyContent = issos
+  const bodyContent = isSOS
     ? `
       <p style="font-size:18px;font-weight:bold;color:#E63946;">
         ⚠️ EMERGENCY — Immediate Action Required!
       </p>
-      <p><strong>${data.userEmail}</strong> has triggered an SOS alert
-         and may need help.</p>
+      <p><strong>${data.userEmail}</strong> has triggered an SOS alert.</p>
       <p>🕐 Time: <strong>${data.timestamp}</strong></p>
       ${data.location
-        ? `<p>📍 Location: 
+        ? `<p>📍 Location:
            <a href="${data.location}" style="color:#0B7A75;">
              View on Google Maps
            </a></p>`
@@ -44,8 +43,7 @@ function buildTemplate(type, data) {
       </p>
     `
     : `
-      <p><strong>${data.userEmail}</strong> is still safe
-         and checking in.</p>
+      <p><strong>${data.userEmail}</strong> is safe and checked in.</p>
       <p>🕐 Time: <strong>${data.timestamp}</strong></p>
       ${data.customMessage
         ? `<div style="background:#E6FAF9;border-left:4px solid #0B7A75;
@@ -54,55 +52,29 @@ function buildTemplate(type, data) {
            </div>`
         : ''}
       <p style="color:#666;">
-        No action required — this is an automated safety check-in.
+        No action required — automated check-in.
       </p>
     `;
 
   return `
     <!DOCTYPE html>
     <html>
-    <head>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          background: #f4f4f4;
-          margin: 0; padding: 0;
-        }
-        .container {
-          max-width: 600px;
-          margin: 40px auto;
-          background: white;
-          border-radius: 12px;
-          overflow: hidden;
-        }
-        .header {
-          background: ${headerColor};
-          padding: 28px;
-          text-align: center;
-        }
-        .header h1 { color: white; margin: 0; font-size: 24px; }
-        .header p  { color: rgba(255,255,255,0.85); margin: 6px 0 0; }
-        .body      { padding: 28px; }
-        .footer    {
-          text-align: center;
-          padding: 18px;
-          color: #888;
-          font-size: 12px;
-          border-top: 1px solid #eee;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="container">
-        <div class="header">
-          <h1>${headerText}</h1>
-          <p>StillSafe — Daily Safety Check & Emergency Alert</p>
+    <body style="font-family: Arial; background:#f4f4f4;">
+      <div style="max-width:600px;margin:40px auto;background:white;border-radius:12px;">
+        
+        <div style="background:${headerColor};padding:20px;text-align:center;color:white;">
+          <h2>${headerText}</h2>
+          <p>StillSafe System</p>
         </div>
-        <div class="body">${bodyContent}</div>
-        <div class="footer">
-          <p>StillSafe — Still Safe. Still Here.</p>
-          <p>You received this because you are an emergency contact.</p>
+
+        <div style="padding:20px;">
+          ${bodyContent}
         </div>
+
+        <div style="text-align:center;padding:15px;color:#888;font-size:12px;">
+          StillSafe — Still Safe. Still Here.
+        </div>
+
       </div>
     </body>
     </html>
@@ -118,9 +90,21 @@ async function sendEmail({ toEmail, toName, subject, type, data }) {
       return { success: false, error: "SendGrid not configured" };
     }
 
+    if (!FROM_EMAIL) {
+      console.error("❌ FROM_EMAIL missing in environment");
+      return { success: false, error: "Sender email not configured" };
+    }
+
     await mailer.send({
       to:   { email: toEmail, name: toName },
       from: { email: FROM_EMAIL, name: FROM_NAME },
+
+      // ✅ FIX: Reply-To added
+      replyTo: {
+        email: FROM_EMAIL,
+        name: FROM_NAME
+      },
+
       subject,
       html: buildTemplate(type, data),
     });
@@ -130,7 +114,10 @@ async function sendEmail({ toEmail, toName, subject, type, data }) {
 
   } catch (error) {
     console.error('❌ SendGrid error:', error.response?.body || error);
-    return { success: false, error: error.message };
+    return {
+      success: false,
+      error: error.response?.body?.errors?.[0]?.message || error.message
+    };
   }
 }
 
@@ -139,13 +126,23 @@ async function sendEmailToContacts({ contacts, subject, type, data }) {
   const results = [];
 
   for (const contact of contacts) {
+    if (!contact.email) {
+      results.push({
+        contact: contact.name || 'unknown',
+        success: false,
+        error: 'Missing email'
+      });
+      continue;
+    }
+
     const result = await sendEmail({
       toEmail: contact.email,
-      toName:  contact.name,
+      toName:  contact.name || 'User',
       subject,
       type,
       data,
     });
+
     results.push({ contact: contact.email, ...result });
   }
 
